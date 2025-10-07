@@ -1,0 +1,71 @@
+services:
+  concourse-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: concourse
+      POSTGRES_PASSWORD: concourse_pass
+      POSTGRES_USER: concourse_user
+      PGDATA: /database
+    volumes:
+      - concourse-db-data:/database
+    networks:
+      - concourse-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U concourse_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  concourse-web:
+    image: concourse/concourse:7.11
+    command: web
+    depends_on:
+      concourse-db:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keys/web:/concourse-keys
+    environment:
+      CONCOURSE_SESSION_SIGNING_KEY: /concourse-keys/session_signing_key
+      CONCOURSE_TSA_HOST_KEY: /concourse-keys/tsa_host_key
+      CONCOURSE_TSA_AUTHORIZED_KEYS: /concourse-keys/authorized_worker_keys
+      CONCOURSE_POSTGRES_HOST: concourse-db
+      CONCOURSE_POSTGRES_USER: concourse_user
+      CONCOURSE_POSTGRES_PASSWORD: concourse_pass
+      CONCOURSE_POSTGRES_DATABASE: concourse
+      CONCOURSE_EXTERNAL_URL: http://localhost:8081
+      CONCOURSE_ADD_LOCAL_USER: concourse:secret
+      CONCOURSE_MAIN_TEAM_LOCAL_USER: concourse
+      CONCOURSE_CLUSTER_NAME: local-dev
+      CONCOURSE_LOG_LEVEL: debug
+    networks:
+      - concourse-net
+    restart: unless-stopped
+
+  concourse-worker:
+    image: concourse/concourse:7.11
+    command: worker
+    privileged: true
+    depends_on:
+      - concourse-web
+    volumes:
+      - ./keys/worker:/concourse-keys
+    environment:
+      CONCOURSE_TSA_HOST: concourse-web:2222
+      CONCOURSE_TSA_PUBLIC_KEY: /concourse-keys/tsa_host_key.pub
+      CONCOURSE_TSA_WORKER_PRIVATE_KEY: /concourse-keys/worker_key
+      CONCOURSE_GARDEN_NETWORK_POOL: 10.254.0.0/16
+      CONCOURSE_BAGGAGECLAIM_DRIVER: overlay
+      CONCOURSE_RUNTIME: containerd
+      CONCOURSE_LOG_LEVEL: debug
+    networks:
+      - concourse-net
+    restart: unless-stopped
+
+volumes:
+  concourse-db-data:
+
+networks:
+  concourse-net:
+    driver: bridge

@@ -1,0 +1,139 @@
+---
+resource_types:
+  - name: cf-cli-resource
+    type: docker-image
+    source:
+      repository: nulldriver/cf-cli-resource
+      tag: latest
+
+resources:
+  - name: app-source
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/YOUR_ORG/YOUR_REPO.git
+      branch: main
+      # username: ((git-username))
+      # password: ((git-password))
+
+  - name: cf-environment
+    type: cf-cli-resource
+    source:
+      api: ((cf-api-endpoint))
+      username: ((cf-username))
+      password: ((cf-password))
+      organization: ((cf-org))
+      space: ((cf-space))
+      skip_cert_check: false
+
+jobs:
+  - name: build-and-deploy
+    plan:
+      - get: app-source
+        trigger: true
+
+      - task: build-app
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: maven
+              tag: 3.9-eclipse-temurin-17
+          inputs:
+            - name: app-source
+          outputs:
+            - name: build-output
+          run:
+            path: sh
+            args:
+              - -exc
+              - |
+                cd app-source
+                mvn clean package -DskipTests
+                cp target/*.jar ../build-output/app.jar
+                ls -la ../build-output/
+
+      - task: prepare-manifest
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: ubuntu
+              tag: latest
+          inputs:
+            - name: app-source
+            - name: build-output
+          outputs:
+            - name: cf-deploy
+          run:
+            path: sh
+            args:
+              - -exc
+              - |
+                # Copy the JAR file
+                cp build-output/app.jar cf-deploy/
+
+                # Create manifest.yml if it doesn't exist
+                if [ ! -f app-source/manifest.yml ]; then
+                  cat > cf-deploy/manifest.yml <<EOF
+                ---
+                applications:
+                - name: user-api
+                  memory: 1G
+                  instances: 1
+                  path: app.jar
+                  buildpack: java_buildpack
+                  env:
+                    JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+                    SPRING_PROFILES_ACTIVE: production
+                  routes:
+                  - route: user-api-((cf-app-suffix)).((cf-domain))
+                EOF
+                else
+                  cp app-source/manifest.yml cf-deploy/
+                fi
+
+                ls -la cf-deploy/
+
+      - put: cf-environment
+        params:
+          command: push
+          app_name: user-api
+          manifest: cf-deploy/manifest.yml
+          path: cf-deploy/app.jar
+
+  - name: test-deployment
+    plan:
+      - get: app-source
+        trigger: true
+        passed: [build-and-deploy]
+
+      - task: smoke-test
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: curlimages/curl
+              tag: latest
+          run:
+            path: sh
+            args:
+              - -exc
+              - |
+                echo "Running smoke tests..."
+                sleep 10
+
+                APP_URL="https://user-api-((cf-app-suffix)).((cf-domain))"
+
+                # Test health endpoint
+                echo "Testing $APP_URL/actuator/health"
+                # curl -f $APP_URL/actuator/health || echo "Health check not available"
+
+                # Test users endpoint
+                echo "Testing $APP_URL/users"
+                # curl -f $APP_URL/users
+
+                echo "Smoke tests completed (placeholder - edit URLs when CF is configured)"

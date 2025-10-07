@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Directory</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .users-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .user-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .user-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .user-id {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 0 auto 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .user-name {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .user-email {
+            color: #666;
+            font-size: 0.95em;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .user-email::before {
+            content: '✉ ';
+            margin-right: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.3em;
+            padding: 40px;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+
+        .stats {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .stats-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stats-label {
+            color: #666;
+            font-size: 1.1em;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .users-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👥 User Directory</h1>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stats-number" id="userCount">0</div>
+            <div class="stats-label">Total Users</div>
+        </div>
+
+        <div id="loading" class="loading">Loading users...</div>
+        <div id="error" style="display: none;"></div>
+        <div id="usersContainer" class="users-grid"></div>
+    </div>
+
+    <script>
+        // Function to get initials from name
+        function getInitials(name) {
+            return name
+                .split(' ')
+                .map(word => word[0])
+                .join('')
+                .toUpperCase()
+                .substring(0, 2);
+        }
+
+        // Function to create a user card
+        function createUserCard(user) {
+            const card = document.createElement('div');
+            card.className = 'user-card';
+
+            card.innerHTML = `
+                <div class="user-id">ID: ${user.id}</div>
+                <div class="user-avatar">${getInitials(user.name)}</div>
+                <div class="user-name">${user.name}</div>
+                <div class="user-email">${user.email}</div>
+            `;
+
+            return card;
+        }
+
+        // Fetch and display users
+        async function loadUsers() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const containerEl = document.getElementById('usersContainer');
+            const statsEl = document.getElementById('stats');
+            const countEl = document.getElementById('userCount');
+
+            try {
+                const response = await fetch('/users');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const users = await response.json();
+
+                // Hide loading
+                loadingEl.style.display = 'none';
+
+                if (users.length === 0) {
+                    containerEl.innerHTML = '<div class="error">No users found</div>';
+                    return;
+                }
+
+                // Show stats
+                statsEl.style.display = 'block';
+                countEl.textContent = users.length;
+
+                // Create and append user cards
+                users.forEach(user => {
+                    const card = createUserCard(user);
+                    containerEl.appendChild(card);
+                });
+
+            } catch (error) {
+                loadingEl.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.className = 'error';
+                errorEl.textContent = `Error loading users: ${error.message}`;
+                console.error('Error fetching users:', error);
+            }
+        }
+
+        // Load users when page loads
+        document.addEventListener('DOMContentLoaded', loadUsers);
+    </script>
+</body>
+</html>
