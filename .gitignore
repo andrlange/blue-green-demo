@@ -12,7 +12,7 @@ buildNumber.properties
 
 # Spring Boot
 spring-boot-starter-parent/
-
+vols/
 # IDE
 .idea/
 *.iml

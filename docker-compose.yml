@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: concourse_user
       PGDATA: /database
     volumes:
-      - concourse-db-data:/database
+      - ./vols/concourse-db-data:/database
     networks:
       - concourse-net
     healthcheck:
