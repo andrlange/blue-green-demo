@@ -13,9 +13,9 @@ echo "✅ Docker is running"
 echo ""
 
 # Check if images need to be pulled
-if ! docker images | grep -q "concourse/concourse.*7.11"; then
+if ! docker images | grep -q "concourse/concourse.*7.14"; then
     echo "📥 Pulling Concourse images (this may take 5-10 minutes on first run)..."
-    echo "   concourse/concourse:7.11 (~1.4GB)"
+    echo "   concourse/concourse:7.14 (~1.4GB)"
     docker-compose pull
     echo ""
 fi

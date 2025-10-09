@@ -1,6 +1,6 @@
 services:
   concourse-db:
-    image: postgres:15
+    image: postgres:17
     environment:
       POSTGRES_DB: concourse
       POSTGRES_PASSWORD: concourse_pass
@@ -17,7 +17,7 @@ services:
       retries: 5
 
   concourse-web:
-    image: concourse/concourse:7.11
+    image: concourse/concourse:7.14.2
     command: web
     depends_on:
       concourse-db:
@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 
   concourse-worker:
-    image: concourse/concourse:7.11
+    image: concourse/concourse:7.14.2
     command: worker
     privileged: true
     depends_on:

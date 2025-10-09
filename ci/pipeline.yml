@@ -39,7 +39,7 @@ jobs:
             type: docker-image
             source:
               repository: maven
-              tag: 3.9-eclipse-temurin-17
+              tag: eclipse-temurin-21
           inputs:
             - name: app-source
           outputs:
@@ -86,7 +86,7 @@ jobs:
                   path: app.jar
                   buildpack: java_buildpack
                   env:
-                    JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 17.+ } }'
+                    JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
                     SPRING_PROFILES_ACTIVE: production
                   routes:
                   - route: user-api-((cf-app-suffix)).((cf-domain))
